@@ -305,6 +305,19 @@ object PlayerCore {
         state.value = State()
     }
 
+    /** 停止播放：保留当前歌曲信息，方便再次播放 */
+    fun stop() {
+        saveSession()
+        loadJob?.cancel()
+        releasePlayer()
+        state.value = state.value.copy(
+            playing = false,
+            loading = false,
+            positionMs = 0L,
+            status = "已停止"
+        )
+    }
+
     // ==================== 上次播放记忆 ====================
 
     private const val SESSION_PREF = "player_session"

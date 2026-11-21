@@ -256,7 +256,13 @@ class PlaybackController(
                             fillLyrics()
                         }
                     }
-                    if (lyricsShown) scrollToCurrent()
+                    if (lyricsShown) {
+                        // 切歌后歌词列表长度变化时重新填充，避免“歌词卡没”
+                        if (PlayerCore.lyricLines().size != lyricsAdapter.itemCountSafe()) {
+                            fillLyrics()
+                        }
+                        scrollToCurrent()
+                    }
                     tvTitle.text = song?.name ?: "未在播放"
                     tvArtist.text = song?.artist ?: ""
                     tvQuality.text = st.quality

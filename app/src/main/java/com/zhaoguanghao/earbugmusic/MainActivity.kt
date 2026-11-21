@@ -61,6 +61,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var adapter: SongAdapter
 
     private var mode: ParseMode = ParseMode.SONG
+    private var lastSeenSongId: String? = null
     private var qualityOptions: List<QualityOption> = emptyList()
     private var selectedQuality: Quality = Quality.LOSSLESS
 
@@ -111,6 +112,19 @@ class MainActivity : AppCompatActivity() {
         PlayerCore.restoreSession()
         selectTab(0)
         requestNotificationPermission()
+
+        // 切歌（含通知栏/耳机下一首）时，强制切到播放页，保证歌词跟着刷新
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                PlayerCore.state.collect { st ->
+                    val id = st.song?.id
+                    if (id != null && id != lastSeenSongId) {
+                        lastSeenSongId = id
+                        if (st.playing || st.loading) selectTab(1)
+                    }
+                }
+            }
+        }
     }
 
     // ==================== Tab ====================

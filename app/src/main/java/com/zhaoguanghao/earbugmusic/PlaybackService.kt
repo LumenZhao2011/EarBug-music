@@ -88,6 +88,8 @@ class PlaybackService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 重新开始播放时必须恢复通知
+        if (intent?.action != ACTION_STOP) stopped = false
         when (intent?.action) {
             ACTION_TOGGLE -> {
                 PlayerCore.toggle()
@@ -103,7 +105,7 @@ class PlaybackService : Service() {
             }
             ACTION_STOP -> {
                 stopped = true
-                PlayerCore.release()
+                PlayerCore.stop()
                 val mgr = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 mgr.cancel(NOTIF_ID)
                 stopForeground(true)
