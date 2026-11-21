@@ -230,7 +230,7 @@ app/src/main/java/com/zhaoguanghao/earbugmusic/
 
 ```bash
 git clone <your-repo-url>
-cd MusicBox
+cd EarBug_music
 
 # 设置 SDK 路径
 echo "sdk.dir=/path/to/Android/sdk" > local.properties
@@ -301,7 +301,7 @@ gradlew.bat assembleDebug      # Windows
 ## 发布到 GitHub
 
 ```bash
-cd MusicBox
+cd EarBug_music
 git init
 git add .
 git commit -m "feat: 耳虫音乐 v1.1.35"
