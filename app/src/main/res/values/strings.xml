@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">耳虫音乐</string>
+    <string name="search_hint">搜索歌曲 / 歌手 / 专辑</string>
+    <string name="search">搜索</string>
+    <string name="netease">网易云</string>
+    <string name="qq">QQ音乐</string>
+    <string name="kugou">酷狗</string>
+    <string name="download">下载</string>
+    <string name="play">播放</string>
+    <string name="parsing">解析中…</string>
+    <string name="download_success">下载完成</string>
+    <string name="download_failed">下载失败</string>
+    <string name="no_result">没有找到相关音乐</string>
+    <string name="lossless">无损</string>
+    <string name="standard">标准</string>
+    <string name="high">高品</string>
+    <string name="downloads">下载管理</string>
+    <string name="tab_search">搜索</string>
+    <string name="tab_play">播放</string>
+    <string name="tab_downloads">下载</string>
+    <string name="hint_search">键入关键词</string>
+    <string name="label_source">音源</string>
+    <string name="label_quality">音质</string>
+    <string name="label_mode">模式</string>
+    <string name="comments">评论</string>
+    <string name="download_all">全部下载</string>
+    <string name="no_comments">暂无评论</string>
+    <string name="playing">正在播放</string>
+    <string name="clear_done">清除已完成</string>
+    <string name="no_downloads">暂无下载任务</string>
+    <string name="nothing_playing">未播放</string>
+    <string name="link_panel_collapsed">▾ 链接解析（歌曲 / 歌单）</string>
+    <string name="link_panel_expanded">▴ 链接解析（歌曲 / 歌单）</string>
+    <string name="link_hint">粘贴歌曲或歌单链接</string>
+    <string name="parse">解析</string>
+    <string name="input_hint">搜索歌曲，或粘贴歌曲/歌单链接</string>
+    <string name="tip_link">粘贴歌单链接将自动解析全部歌曲并批量下载；粘贴歌曲链接解析单曲；输入关键词搜索</string>
+    <string name="batch_enqueued">已解析 %1$d 首，加入下载队列</string>
+    <string name="parsed_single">已解析：%1$s</string>
+    <string name="link_wrong_platform">该链接属于其他平台</string>
+    <string name="parsed_songs">已解析 %1$d 首歌曲</string>
+    <string name="link_invalid">无法识别的链接</string>
+</resources>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 主色：网易红 -->
+    <color name="primary">#E8352C</color>
+    <color name="primary_dark">#C42A22</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="white">#F5F5F7</color>
+
+    <!-- 深色背景体系（降低纯黑对比，过渡更自然） -->
+    <color name="bg">#141317</color>
+    <color name="surface">#1C1B20</color>
+    <color name="surface_variant">#2A282E</color>
+    <color name="outline">#57525C</color>
+    <color name="text_primary">#F1EDF3</color>
+    <color name="text_secondary">#BEB8C4</color>
+
+    <!-- 浅色（白底改淡灰） -->
+    <color name="light_surface">#F2F2F7</color>
+    <color name="light_text">#1C1C1E</color>
+    <color name="light_text_secondary">#6E6E73</color>
+
+    <!-- 平台标识色 -->
+    <color name="netease">#E8352C</color>
+    <color name="qq">#31C27C</color>
+    <color name="kugou">#2C7DE8</color>
+
+    <color name="placeholder_bg">#2A2A2A</color>
+    <color name="placeholder_fg">#888888</color>
+    <color name="accent">#E8352C</color>
+</resources>
