@@ -283,6 +283,17 @@ object PlayerCore {
         }
     }
 
+    /** 主动暂停（耳机拔出等场景） */
+    fun pause() {
+        val player = mp ?: return
+        try {
+            if (player.isPlaying) player.pause()
+        } catch (_: Exception) {
+        }
+        state.value = state.value.copy(playing = false)
+        saveSession()
+    }
+
     fun next() {
         if (queue.isEmpty()) return
         playAt((index + 1) % queue.size, quality)

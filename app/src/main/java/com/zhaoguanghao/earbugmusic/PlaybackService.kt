@@ -2,6 +2,11 @@ package com.zhaoguanghao.earbugmusic
 
 import android.app.Notification
 import android.app.NotificationChannel
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
@@ -49,11 +54,62 @@ class PlaybackService : Service() {
     private var cover: Bitmap? = null
     private var lastSongId: String? = null
     private var stopped = false
+    private var lastPauseTip = 0L
+
+    /** 音频被路由到扬声器（如拔出耳机） */
+    private val noisyReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                pauseForDeviceChange("耳机已断开")
+            }
+        }
+    }
+
+    /** 输出设备被移除（蓝牙断开 / USB 拔出） */
+    private val deviceCallback = object : AudioDeviceCallback() {
+        override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
+            val removedHeadset = removedDevices?.any { info ->
+                when (info.type) {
+                    AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+                    AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                    AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                    AudioDeviceInfo.TYPE_USB_HEADSET,
+                    AudioDeviceInfo.TYPE_USB_DEVICE -> true
+                    else -> false
+                }
+            } == true
+            if (removedHeadset) pauseForDeviceChange("音频设备已断开")
+        }
+    }
+
+    private fun pauseForDeviceChange(reason: String) {
+        if (!PlayerCore.state.value.playing) return
+        PlayerCore.pause()
+        val now = System.currentTimeMillis()
+        if (now - lastPauseTip > 1500) {
+            lastPauseTip = now
+            toast("$reason，已暂停")
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
         PlayerCore.attachContext(applicationContext)
         createChannel()
+
+        // 监听耳机拔出 / 输出设备切换
+        try {
+            androidx.core.content.ContextCompat.registerReceiver(
+                this,
+                noisyReceiver,
+                IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+            val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            am.registerAudioDeviceCallback(deviceCallback, android.os.Handler(mainLooper))
+        } catch (_: Exception) {
+        }
         session = MediaSessionCompat(this, "earbug").apply {
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() = PlayerCore.toggle()
@@ -131,6 +187,15 @@ class PlaybackService : Service() {
     }
 
     override fun onDestroy() {
+        try {
+            unregisterReceiver(noisyReceiver)
+        } catch (_: Exception) {
+        }
+        try {
+            val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            am.unregisterAudioDeviceCallback(deviceCallback)
+        } catch (_: Exception) {
+        }
         scope.cancel()
         session.release()
         PlayerCore.release()
