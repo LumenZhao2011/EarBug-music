@@ -74,7 +74,7 @@ class PlaybackController(
                 com.zhaoguanghao.earbugmusic.util.StoragePermission.request(activity)
             } else {
                 DownloadManager.enqueue(activity.applicationContext, song, quality)
-                Toast.makeText(activity, "已加入下载队列", Toast.LENGTH_SHORT).show()
+                com.zhaoguanghao.earbugmusic.util.Tips.success(activity, "已加入下载队列")
             }
         }
         btnComments.setOnClickListener {
@@ -142,11 +142,10 @@ class PlaybackController(
             btnFav.setImageResource(
                 if (added) R.drawable.ic_heart_filled else R.drawable.ic_heart
             )
-            Toast.makeText(
+            com.zhaoguanghao.earbugmusic.util.Tips.success(
                 activity,
-                if (added) "已收藏" else "已取消收藏",
-                Toast.LENGTH_SHORT
-            ).show()
+                if (added) "已收藏" else "已取消收藏"
+            )
         }
         btnCloseLyrics.setOnClickListener { hideLyrics() }
 

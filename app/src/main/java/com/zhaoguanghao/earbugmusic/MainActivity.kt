@@ -260,7 +260,7 @@ class MainActivity : AppCompatActivity() {
         val input = etInput.text.toString().trim()
         hideKeyboard()
         if (mode != ParseMode.TOPLIST && input.isEmpty()) {
-            toast("请输入内容")
+            toastError("请输入内容")
             return
         }
         progressBar.visibility = android.view.View.VISIBLE
@@ -296,7 +296,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             } catch (e: Exception) {
-                toast(e.message ?: "操作失败")
+                toastError(e.message ?: "操作失败")
             } finally {
                 progressBar.visibility = android.view.View.GONE
             }
@@ -371,7 +371,7 @@ class MainActivity : AppCompatActivity() {
                 showSongs(songs)
                 toast("热歌榜已加载 " + songs.size + " 首")
             } catch (e: Exception) {
-                toast(e.message ?: "加载失败")
+                toastError(e.message ?: "加载失败")
             } finally {
                 progressBar.visibility = android.view.View.GONE
             }
@@ -450,7 +450,7 @@ class MainActivity : AppCompatActivity() {
     /** 检查存储权限（Android 9 及以下需要），未授权则申请并返回 false */
     private fun ensureStorage(): Boolean {
         if (com.zhaoguanghao.earbugmusic.util.StoragePermission.canWrite(this)) return true
-        toast("请允许存储权限，文件才能保存到 Download 文件夹")
+        toastError("请允许存储权限，文件才能保存到 Download 文件夹")
         com.zhaoguanghao.earbugmusic.util.StoragePermission.request(this)
         return false
     }
@@ -491,7 +491,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** 成功类提示：默认不打扰 */
     private fun toast(msg: String) {
+        com.zhaoguanghao.earbugmusic.util.Tips.success(this, msg)
+    }
+
+    /** 错误 / 引导类提示：始终显示 */
+    private fun toastError(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
     }
 

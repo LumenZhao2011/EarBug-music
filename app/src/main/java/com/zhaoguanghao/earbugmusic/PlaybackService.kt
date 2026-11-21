@@ -178,12 +178,7 @@ class PlaybackService : Service() {
 
     /** 通知栏按钮点击后的轻提示 */
     private fun toast(msg: String) {
-        try {
-            android.os.Handler(mainLooper).post {
-                android.widget.Toast.makeText(applicationContext, msg, android.widget.Toast.LENGTH_SHORT).show()
-            }
-        } catch (_: Exception) {
-        }
+        com.zhaoguanghao.earbugmusic.util.Tips.success(applicationContext, msg)
     }
 
     override fun onDestroy() {
