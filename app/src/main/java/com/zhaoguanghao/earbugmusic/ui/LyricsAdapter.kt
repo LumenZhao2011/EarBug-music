@@ -1,28 +1,31 @@
 package com.zhaoguanghao.earbugmusic.ui
 
-import android.graphics.Color
+import android.graphics.Typeface
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
+import com.zhaoguanghao.earbugmusic.PlayerCore
 import com.zhaoguanghao.earbugmusic.R
 
-/** 歌词列表：当前行放大、变亮，其余行降低透明度 */
+/**
+ * 歌词列表：每行「原文 + 翻译」，当前行放大变红，其余灰暗。
+ */
 class LyricsAdapter : RecyclerView.Adapter<LyricsAdapter.VH>() {
 
-    private val lines = mutableListOf<String>()
+    private val lines = mutableListOf<PlayerCore.LyricLine>()
     private var active = -1
 
-    fun submit(list: List<String>) {
+    fun submit(list: List<PlayerCore.LyricLine>) {
         lines.clear()
         lines.addAll(list)
         active = -1
         notifyDataSetChanged()
     }
 
-    fun activeIndex(): Int = active
+    fun itemCountSafe(): Int = lines.size
 
     fun setActive(index: Int) {
         if (index == active) return
@@ -33,7 +36,8 @@ class LyricsAdapter : RecyclerView.Adapter<LyricsAdapter.VH>() {
     }
 
     class VH(view: View) : RecyclerView.ViewHolder(view) {
-        val tv: TextView = view.findViewById(R.id.tvLyricLine)
+        val tvLine: TextView = view.findViewById(R.id.tvLyricLine)
+        val tvTrans: TextView = view.findViewById(R.id.tvLyricTrans)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -44,18 +48,33 @@ class LyricsAdapter : RecyclerView.Adapter<LyricsAdapter.VH>() {
     override fun getItemCount(): Int = lines.size
 
     override fun onBindViewHolder(holder: VH, position: Int) {
-        holder.tv.text = lines[position]
+        val line = lines[position]
         val isActive = position == active
-        val ctx = holder.tv.context
-        holder.tv.setTextColor(
-            if (isActive) ContextCompat.getColor(ctx, R.color.primary)
-            else ContextCompat.getColor(ctx, R.color.text_secondary)
+        val ctx = holder.tvLine.context
+
+        holder.tvLine.text = line.text
+        holder.tvLine.textSize = if (isActive) 19f else 16f
+        holder.tvLine.setTextColor(
+            ContextCompat.getColor(
+                ctx,
+                if (isActive) R.color.primary else R.color.text_secondary
+            )
         )
-        // 行高固定，字号变化不再影响布局；放大后也不会被裁剪
-        holder.tv.textSize = if (isActive) 19f else 16f
-        holder.tv.alpha = if (isActive) 1f else 0.45f
-        holder.tv.setTypeface(null, if (isActive) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
-        holder.tv.scaleX = 1f
-        holder.tv.scaleY = 1f
+        holder.tvLine.alpha = if (isActive) 1f else 0.45f
+        holder.tvLine.setTypeface(
+            null,
+            if (isActive) Typeface.BOLD else Typeface.NORMAL
+        )
+
+        val trans = line.trans
+        if (!trans.isNullOrEmpty()) {
+            holder.tvTrans.visibility = View.VISIBLE
+            holder.tvTrans.text = trans
+            holder.tvTrans.textSize = if (isActive) 15f else 13f
+            holder.tvTrans.alpha = if (isActive) 0.9f else 0.4f
+        } else {
+            holder.tvTrans.visibility = View.GONE
+            holder.tvTrans.text = ""
+        }
     }
 }

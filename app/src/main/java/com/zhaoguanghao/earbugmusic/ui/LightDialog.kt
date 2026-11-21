@@ -26,8 +26,9 @@ object LightDialog {
     private fun dismissWithAnim(dialog: Dialog, content: LinearLayout) {
         content.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
         content.animate()
-            .alpha(0f).scaleX(0.96f).scaleY(0.96f)
-            .setDuration(90)
+            .alpha(0f)
+            .translationY(24f * content.resources.displayMetrics.density)
+            .setDuration(110)
             .setInterpolator(android.view.animation.AccelerateInterpolator())
             .withEndAction {
                 content.setLayerType(android.view.View.LAYER_TYPE_NONE, null)
@@ -55,15 +56,16 @@ object LightDialog {
         // 弹出动画：等首帧布局完成后再开始，并走硬件层，避免掉帧
         dialog.setOnShowListener {
             content.post {
+                val offset = 36f * content.resources.displayMetrics.density
                 content.alpha = 0f
-                content.scaleX = 0.92f
-                content.scaleY = 0.92f
+                content.translationY = offset
                 content.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
                 content.animate()
-                    .alpha(1f).scaleX(1f).scaleY(1f)
-                    .setDuration(150)
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(180)
                     .setInterpolator(
-                        androidx.core.view.animation.PathInterpolatorCompat.create(0.2f, 0f, 0f, 1f)
+                        androidx.core.view.animation.PathInterpolatorCompat.create(0.0f, 0f, 0.2f, 1f)
                     )
                     .withEndAction {
                         content.setLayerType(android.view.View.LAYER_TYPE_NONE, null)

@@ -47,6 +47,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pageSearch: android.view.View
     private lateinit var pagePlayer: android.view.View
     private lateinit var pageDownloads: android.view.View
+    private lateinit var pageFavorites: android.view.View
     private lateinit var navItems: List<LinearLayout>
     private lateinit var navIcons: List<ImageView>
     private lateinit var navLabels: List<TextView>
@@ -68,6 +69,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var downloadAdapter: DownloadAdapter
     private lateinit var tvDlEmpty: TextView
 
+    private lateinit var favAdapter: SongAdapter
+    private lateinit var tvFavEmpty: TextView
+    private lateinit var tvFavCount: TextView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -75,20 +80,24 @@ class MainActivity : AppCompatActivity() {
         pageSearch = findViewById(R.id.pageSearch)
         pagePlayer = findViewById(R.id.pagePlayer)
         pageDownloads = findViewById(R.id.pageDownloads)
+        pageFavorites = findViewById(R.id.pageFavorites)
         navItems = listOf(
             findViewById(R.id.navSearch),
             findViewById(R.id.navPlay),
-            findViewById(R.id.navDownloads)
+            findViewById(R.id.navDownloads),
+            findViewById(R.id.navFav)
         )
         navIcons = listOf(
             findViewById(R.id.navSearchIcon),
             findViewById(R.id.navPlayIcon),
-            findViewById(R.id.navDownloadsIcon)
+            findViewById(R.id.navDownloadsIcon),
+            findViewById(R.id.navFavIcon)
         )
         navLabels = listOf(
             findViewById(R.id.navSearchLabel),
             findViewById(R.id.navPlayLabel),
-            findViewById(R.id.navDownloadsLabel)
+            findViewById(R.id.navDownloadsLabel),
+            findViewById(R.id.navFavLabel)
         )
         navItems.forEachIndexed { i, item -> item.setOnClickListener { selectTab(i) } }
 
@@ -98,6 +107,8 @@ class MainActivity : AppCompatActivity() {
         playback = PlaybackController(this, pagePlayer)
         playback.observe()
         setupDownloadsPage()
+        setupFavoritesPage()
+        PlayerCore.restoreSession()
         selectTab(0)
         requestNotificationPermission()
     }
@@ -112,13 +123,14 @@ class MainActivity : AppCompatActivity() {
             currentFocus?.clearFocus()
         } catch (_: Exception) {
         }
-        val pages = listOf(pageSearch, pagePlayer, pageDownloads)
+        val pages = listOf(pageSearch, pagePlayer, pageDownloads, pageFavorites)
         val target = pages[index]
         val alreadyVisible = target.visibility == android.view.View.VISIBLE
         pages.forEachIndexed { i, v ->
             if (i != index) v.visibility = android.view.View.GONE
         }
         target.visibility = android.view.View.VISIBLE
+        if (index == 3) refreshFavorites()
         if (!alreadyVisible) {
             target.alpha = 0f
             target.translationY = 12f * resources.displayMetrics.density
@@ -156,11 +168,13 @@ class MainActivity : AppCompatActivity() {
 
         adapter = SongAdapter(
             onPlay = { song ->
-                PlayerCore.setQueue(adapterSnapshot)
+                // 播放列表 = 当前页面的所有歌曲
+                PlayerCore.setQueue(adapter.snapshot())
                 playback.load(song, selectedQuality)
                 selectTab(1)
             },
-            onDownload = { song -> enqueueSong(song) }
+            onDownload = { song -> enqueueSong(song) },
+            onFavoriteChanged = { _, _ -> refreshFavoritesIfVisible() }
         )
         rvSongs.layoutManager = LinearLayoutManager(this)
         rvSongs.adapter = adapter
@@ -278,6 +292,7 @@ class MainActivity : AppCompatActivity() {
     private fun showSongs(songs: List<Song>) {
         adapterSnapshot = songs
         adapter.submit(songs)
+        rvSongs.scrollToPosition(0)
         PlayerCore.setQueue(songs)
         tvEmpty.visibility = if (songs.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
     }
@@ -295,6 +310,10 @@ class MainActivity : AppCompatActivity() {
                 PlayerCore.setQueue(if (downloaded.isEmpty()) listOf(task.song) else downloaded)
                 playback.load(task.song, selectedQuality)
                 selectTab(1)
+            },
+            onRetry = { task ->
+                DownloadManager.retry(task)
+                toast("已重新加入下载队列")
             },
             onDelete = { task ->
                 if (DownloadManager.hasLocalFile(task)) {
@@ -422,6 +441,42 @@ class MainActivity : AppCompatActivity() {
         return false
     }
 
+    // ==================== 红心歌曲 ====================
+
+    private fun setupFavoritesPage() {
+        tvFavEmpty = pageFavorites.findViewById(R.id.tvFavEmpty)
+        tvFavCount = pageFavorites.findViewById(R.id.tvFavCount)
+        favAdapter = SongAdapter(
+            onPlay = { song ->
+                val favs = com.zhaoguanghao.earbugmusic.util.Favorites.all(this)
+                PlayerCore.setQueue(favs)
+                playback.load(song, selectedQuality)
+                selectTab(1)
+            },
+            onDownload = { song -> enqueueSong(song) },
+            onFavoriteChanged = { _, _ -> refreshFavorites() }
+        )
+        pageFavorites.findViewById<RecyclerView>(R.id.rvFavorites).apply {
+            layoutManager = LinearLayoutManager(this@MainActivity)
+            adapter = favAdapter
+        }
+        refreshFavorites()
+    }
+
+    private fun refreshFavorites() {
+        if (!this::favAdapter.isInitialized) return
+        val list = com.zhaoguanghao.earbugmusic.util.Favorites.all(this)
+        favAdapter.submit(list)
+        tvFavCount.text = list.size.toString() + " 首"
+        tvFavEmpty.visibility = if (list.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
+    }
+
+    private fun refreshFavoritesIfVisible() {
+        if (this::favAdapter.isInitialized && pageFavorites.visibility == android.view.View.VISIBLE) {
+            refreshFavorites()
+        }
+    }
+
     private fun toast(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
     }
@@ -432,14 +487,16 @@ class MainActivity : AppCompatActivity() {
         if (android.os.Build.VERSION.SDK_INT >= 33) {
             wanted.add(android.Manifest.permission.POST_NOTIFICATIONS)
         }
-        if (android.os.Build.VERSION.SDK_INT < 29) {
-            wanted.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        }
         val missing = wanted.filter {
             ContextCompat.checkSelfPermission(this, it) !=
                 android.content.pm.PackageManager.PERMISSION_GRANTED
         }
         if (missing.isNotEmpty()) requestPermissions(missing.toTypedArray(), 1001)
+    }
+
+    override fun onPause() {
+        PlayerCore.saveSession()
+        super.onPause()
     }
 
     override fun onDestroy() {

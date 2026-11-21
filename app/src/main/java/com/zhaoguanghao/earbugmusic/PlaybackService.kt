@@ -48,6 +48,7 @@ class PlaybackService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var cover: Bitmap? = null
     private var lastSongId: String? = null
+    private var stopped = false
 
     override fun onCreate() {
         super.onCreate()
@@ -70,6 +71,7 @@ class PlaybackService : Service() {
 
         scope.launch {
             PlayerCore.state.collect { st ->
+                if (stopped) return@collect
                 // 封面变化时异步加载
                 val song = st.song
                 if (song != null && song.id != lastSongId) {
@@ -87,11 +89,24 @@ class PlaybackService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_TOGGLE -> PlayerCore.toggle()
-            ACTION_NEXT -> PlayerCore.next()
-            ACTION_PREV -> PlayerCore.prev()
+            ACTION_TOGGLE -> {
+                PlayerCore.toggle()
+                toast("已" + if (PlayerCore.state.value.playing) "播放" else "暂停")
+            }
+            ACTION_NEXT -> {
+                PlayerCore.next()
+                toast("下一首")
+            }
+            ACTION_PREV -> {
+                PlayerCore.prev()
+                toast("上一首")
+            }
             ACTION_STOP -> {
+                stopped = true
                 PlayerCore.release()
+                val mgr = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                mgr.cancel(NOTIF_ID)
+                stopForeground(true)
                 stopSelf()
             }
             ACTION_START -> {
@@ -102,6 +117,16 @@ class PlaybackService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    /** 通知栏按钮点击后的轻提示 */
+    private fun toast(msg: String) {
+        try {
+            android.os.Handler(mainLooper).post {
+                android.widget.Toast.makeText(applicationContext, msg, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        } catch (_: Exception) {
+        }
+    }
 
     override fun onDestroy() {
         scope.cancel()

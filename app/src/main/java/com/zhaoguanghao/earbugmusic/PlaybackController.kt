@@ -42,6 +42,7 @@ class PlaybackController(
     private val btnDownload = page.findViewById<Button>(R.id.btnDownload)
     private val btnComments = page.findViewById<ImageButton>(R.id.btnComments)
     private val btnLyrics = page.findViewById<ImageButton>(R.id.btnLyrics)
+    private val btnFav = page.findViewById<ImageButton>(R.id.btnFav)
     private val tvPlayMode = page.findViewById<TextView>(R.id.tvPlayMode)
     private val playerScroll = page.findViewById<android.widget.ScrollView>(R.id.playerScroll)
 
@@ -118,9 +119,11 @@ class PlaybackController(
                         if (quick && kotlin.math.abs(dy) > 110 &&
                             kotlin.math.abs(dy) > kotlin.math.abs(dx) * 1.2f
                         ) {
-                            if (dy > 0) {
+                            if (dy < 0) {
+                                // 上滑：打开歌词
                                 if (!lyricsShown) showLyrics()
                             } else {
+                                // 下滑：收起歌词
                                 if (lyricsShown) hideLyrics()
                             }
                         }
@@ -133,6 +136,18 @@ class PlaybackController(
         playerScroll.setOnTouchListener(swipeListener)
         lyricsPanel.setOnTouchListener(swipeListener)
         btnLyrics.setOnClickListener { if (lyricsShown) hideLyrics() else showLyrics() }
+        btnFav.setOnClickListener {
+            val song = PlayerCore.currentSong() ?: return@setOnClickListener
+            val added = com.zhaoguanghao.earbugmusic.util.Favorites.toggle(activity, song)
+            btnFav.setImageResource(
+                if (added) R.drawable.ic_heart_filled else R.drawable.ic_heart
+            )
+            Toast.makeText(
+                activity,
+                if (added) "已收藏" else "已取消收藏",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
         btnCloseLyrics.setOnClickListener { hideLyrics() }
 
         // 播放模式菜单（淡灰双曲线弹窗）
@@ -231,7 +246,11 @@ class PlaybackController(
                     if (song != null && song.id != lastSongId) {
                         lastSongId = song.id
                         ivCover.setImageResource(R.drawable.ic_cover_placeholder)
-                        ImageLoader.load(ivCover, song.coverUrl)
+                        ImageLoader.load(ivCover, com.zhaoguanghao.earbugmusic.util.CoverUrl.original(song.coverUrl))
+                        val fav = com.zhaoguanghao.earbugmusic.util.Favorites.isFavorite(activity, song.id)
+                        btnFav.setImageResource(
+                            if (fav) R.drawable.ic_heart_filled else R.drawable.ic_heart
+                        )
                         if (lyricsShown) {
                             tvLyricsSong.text = song.name + " · " + song.artist
                             fillLyrics()

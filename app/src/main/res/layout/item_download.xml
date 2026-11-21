@@ -5,63 +5,79 @@
     android:layout_marginBottom="10dp"
     android:background="@drawable/bg_card"
     android:orientation="vertical"
-    android:padding="14dp">
+    android:padding="12dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/tvName"
+        <com.zhaoguanghao.earbugmusic.ui.RoundImageView
+            android:id="@+id/ivDlCover"
+            android:layout_width="58dp"
+            android:layout_height="58dp"
+            android:background="@drawable/bg_cover"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_cover_placeholder"
+            android:contentDescription="专辑封面" />
+
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
             android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="@color/text_primary"
-            android:textSize="15sp"
-            android:text="" />
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="@color/text_primary"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/tvMeta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvQuality"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text=""
+                android:textColor="@color/primary"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:maxLines="2"
+                android:text=""
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/tvPercent"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="top"
+            android:text=""
             android:textColor="@color/primary"
-            android:textSize="12sp"
-            android:text="" />
+            android:textSize="12sp" />
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/tvMeta"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="3dp"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:textColor="@color/text_secondary"
-        android:textSize="12sp"
-        android:text="" />
-
-    <TextView
-        android:id="@+id/tvQuality"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:text=""
-        android:textColor="@color/primary"
-        android:textSize="11sp" />
-
-    <TextView
-        android:id="@+id/tvStatus"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="3dp"
-        android:maxLines="2"
-        android:textColor="@color/text_secondary"
-        android:textSize="12sp"
-        android:text="" />
 
     <ProgressBar
         android:id="@+id/progressBar"
@@ -76,7 +92,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="2dp"
         android:gravity="end"
         android:orientation="horizontal">
 
@@ -87,6 +103,14 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="播放"
             android:src="@drawable/ic_play_small" />
+
+        <ImageButton
+            android:id="@+id/btnItemRetry"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="重试"
+            android:src="@drawable/ic_refresh" />
 
         <ImageButton
             android:id="@+id/btnItemDelete"

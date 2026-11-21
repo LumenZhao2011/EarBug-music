@@ -22,6 +22,12 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <include
+        android:id="@+id/pageFavorites"
+        layout="@layout/page_favorites"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
     <!-- 悬浮底部导航 -->
     <LinearLayout
         android:id="@+id/navBar"
@@ -33,7 +39,7 @@
         android:background="@drawable/bg_nav_bar"
         android:gravity="center"
         android:orientation="horizontal"
-        android:padding="8dp">
+        android:padding="4dp">
 
         <LinearLayout
             android:id="@+id/navSearch"
@@ -107,6 +113,31 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:text="@string/tab_downloads"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navFav"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/navFavIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:contentDescription="红心歌曲"
+                android:src="@drawable/ic_heart" />
+
+            <TextView
+                android:id="@+id/navFavLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="红心"
                 android:textColor="@color/text_secondary"
                 android:textSize="11sp" />
         </LinearLayout>

@@ -38,10 +38,15 @@ object DownloadManager {
     private val lastEmit = ConcurrentHashMap<Long, Long>()
     private var appContext: Context? = null
 
+    /** 同时下载的最大数量 */
+    private const val MAX_CONCURRENT = 5
+
     init {
-        scope.launch {
-            for ((ctx, task) in queue) {
-                process(ctx, task)
+        repeat(MAX_CONCURRENT) {
+            scope.launch {
+                for ((ctx, task) in queue) {
+                    process(ctx, task)
+                }
             }
         }
     }
@@ -57,6 +62,25 @@ object DownloadManager {
 
     fun enqueueAll(context: Context, songs: List<Song>, quality: Quality = Quality.STANDARD) {
         songs.forEach { enqueue(context, it, quality) }
+    }
+
+    /** 重试失败任务 */
+    fun retry(task: DownloadTask) {
+        val ctx = appContext ?: return
+        cancelled.remove(task.id)
+        lastEmit.remove(task.id)
+        val fresh = task.copy(
+            status = DownloadStatus.WAITING,
+            progress = 0f,
+            doneBytes = 0,
+            totalBytes = 0,
+            speed = 0,
+            error = null,
+            quality = ""
+        )
+        _tasks.update { list -> list.map { if (it.id == task.id) fresh else it } }
+        persist()
+        queue.trySend(ctx to fresh)
     }
 
     /** 该任务是否已有本地文件（含下载中的临时文件） */

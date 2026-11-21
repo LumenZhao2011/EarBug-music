@@ -75,8 +75,12 @@ object PlayerCore {
     private var queue: List<Song> = emptyList()
     private var index = -1
     private var quality: Quality = Quality.LOSSLESS
-    private var lyric: List<Pair<Long, String>> = emptyList()
+    /** 一行歌词：原文 + 可选翻译 */
+    data class LyricLine(val timeMs: Long, val text: String, val trans: String?)
+
+    private var lyric: List<LyricLine> = emptyList()
     private var loadJob: Job? = null
+    private var pendingSeekMs: Long = -1L
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -98,11 +102,12 @@ object PlayerCore {
     }
 
     fun setQueue(list: List<Song>) {
+        val current = state.value.song
         queue = list
-        if (index >= queue.size) index = -1
+        index = if (current != null) queue.indexOfFirst { it.id == current.id } else -1
     }
 
-    fun currentSong(): Song? = queue.getOrNull(index)
+    fun currentSong(): Song? = state.value.song ?: queue.getOrNull(index)
 
     fun playAt(i: Int, q: Quality) {
         if (i !in queue.indices) return
@@ -171,6 +176,10 @@ object PlayerCore {
                 player.setDataSource(location)
             }
             player.setOnPreparedListener { p ->
+                if (pendingSeekMs >= 0) {
+                    p.seekTo(pendingSeekMs.toInt())
+                    pendingSeekMs = -1L
+                }
                 p.start()
                 state.value = state.value.copy(
                     playing = true,
@@ -208,6 +217,10 @@ object PlayerCore {
             )
             player.setDataSource(url)
             player.setOnPreparedListener { p ->
+                if (pendingSeekMs >= 0) {
+                    p.seekTo(pendingSeekMs.toInt())
+                    pendingSeekMs = -1L
+                }
                 p.start()
                 state.value = state.value.copy(
                     playing = true,
@@ -254,8 +267,13 @@ object PlayerCore {
     }
 
     fun toggle() {
-        val player = mp ?: return
         if (state.value.loading) return
+        val player = mp
+        if (player == null) {
+            // 冷启动恢复后第一次点播放：按上次位置继续
+            currentSong()?.let { load(it, quality, updateIndex = false) }
+            return
+        }
         if (player.isPlaying) {
             player.pause()
             state.value = state.value.copy(playing = false)
@@ -281,9 +299,66 @@ object PlayerCore {
     }
 
     fun release() {
+        saveSession()
         loadJob?.cancel()
         releasePlayer()
         state.value = State()
+    }
+
+    // ==================== 上次播放记忆 ====================
+
+    private const val SESSION_PREF = "player_session"
+
+    fun saveSession() {
+        val ctx = appContext ?: return
+        val st = state.value
+        val song = st.song ?: return
+        val json = org.json.JSONObject().apply {
+            put("id", song.id)
+            put("name", song.name)
+            put("artist", song.artist)
+            put("album", song.album)
+            put("cover", song.coverUrl)
+            put("duration", song.durationMs)
+        }
+        ctx.getSharedPreferences(SESSION_PREF, Context.MODE_PRIVATE).edit()
+            .putString("song", json.toString())
+            .putLong("pos", st.positionMs)
+            .putString("quality", quality.name)
+            .apply()
+    }
+
+    /** 冷启动恢复上次播放的歌曲（暂停在上次位置） */
+    fun restoreSession() {
+        val ctx = appContext ?: return
+        if (state.value.song != null) return
+        val prefs = ctx.getSharedPreferences(SESSION_PREF, Context.MODE_PRIVATE)
+        val raw = prefs.getString("song", null) ?: return
+        val o = runCatching { org.json.JSONObject(raw) }.getOrNull() ?: return
+        val song = Song(
+            platform = com.zhaoguanghao.earbugmusic.model.Platform.NETEASE,
+            id = o.optString("id"),
+            name = o.optString("name"),
+            artist = o.optString("artist"),
+            album = o.optString("album"),
+            coverUrl = o.optString("cover"),
+            durationMs = o.optLong("duration", 0)
+        )
+        if (song.id.isBlank()) return
+        val pos = prefs.getLong("pos", 0L)
+        quality = runCatching {
+            Quality.valueOf(prefs.getString("quality", "STANDARD") ?: "STANDARD")
+        }.getOrDefault(Quality.STANDARD)
+        queue = listOf(song)
+        index = 0
+        pendingSeekMs = pos
+        state.value = State(
+            song = song,
+            positionMs = pos,
+            durationMs = song.durationMs,
+            playMode = playMode,
+            status = "上次播放 · 点击继续"
+        )
     }
 
     private fun releasePlayer() {
@@ -294,8 +369,8 @@ object PlayerCore {
 
     // ==================== 歌词 ====================
 
-    private fun parseLyric(lrc: String): List<Pair<Long, String>> {
-        val out = mutableListOf<Pair<Long, String>>()
+    private fun parseLyric(lrc: String): List<LyricLine> {
+        val out = mutableListOf<LyricLine>()
         for (line in lrc.lines()) {
             val m = Regex("\\[(\\d{1,2}):(\\d{1,2})(?:[.:](\\d{1,3}))?]").find(line) ?: continue
             val min = m.groupValues[1].toIntOrNull() ?: continue
@@ -307,16 +382,25 @@ object PlayerCore {
                 2 -> msRaw.toLong() * 10
                 else -> msRaw.toLong()
             }
-            val text = line.substring(m.range.last + 1).trim()
+            val raw = line.substring(m.range.last + 1).trim()
+            if (raw.isEmpty()) continue
+            // 合并格式：原文 (翻译：译文)
+            var text = raw
+            var trans: String? = null
+            val mark = raw.lastIndexOf(" (翻译：")
+            if (mark >= 0 && raw.endsWith(")")) {
+                text = raw.substring(0, mark).trim()
+                trans = raw.substring(mark + 5, raw.length - 1).trim().ifEmpty { null }
+            }
             if (text.isEmpty()) continue
-            out.add((min * 60000L + sec * 1000L + ms) to text)
+            out.add(LyricLine(min * 60000L + sec * 1000L + ms, text, trans))
         }
-        out.sortBy { it.first }
+        out.sortBy { it.timeMs }
         return out
     }
 
     /** 全部歌词行（歌词页用） */
-    fun lyricLines(): List<String> = lyric.map { it.second }
+    fun lyricLines(): List<LyricLine> = lyric
 
     /** 当前歌词行下标（不存在时 -1） */
     fun currentLyricIndex(pos: Long): Int {
@@ -326,7 +410,7 @@ object PlayerCore {
         var idx = -1
         while (lo <= hi) {
             val mid = (lo + hi) / 2
-            if (lyric[mid].first <= pos) {
+            if (lyric[mid].timeMs <= pos) {
                 idx = mid
                 lo = mid + 1
             } else {
@@ -337,19 +421,9 @@ object PlayerCore {
     }
 
     private fun lyricAt(pos: Long): String {
-        if (lyric.isEmpty()) return ""
-        var lo = 0
-        var hi = lyric.size - 1
-        var idx = -1
-        while (lo <= hi) {
-            val mid = (lo + hi) / 2
-            if (lyric[mid].first <= pos) {
-                idx = mid
-                lo = mid + 1
-            } else {
-                hi = mid - 1
-            }
-        }
-        return if (idx >= 0) lyric[idx].second else ""
+        val idx = currentLyricIndex(pos)
+        if (idx < 0) return ""
+        val line = lyric[idx]
+        return if (line.trans.isNullOrEmpty()) line.text else line.text + "\n" + line.trans
     }
 }
