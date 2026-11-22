@@ -40,7 +40,9 @@ object PlayerCore {
         val durationMs: Long = 0L,
         val lyricText: String = "",
         val status: String = "",
-        val playMode: PlayMode = PlayMode.SEQUENCE
+        val playMode: PlayMode = PlayMode.SEQUENCE,
+        /** 歌词版本号，变化时界面需要重新填充 */
+        val lyricVersion: Int = 0
     )
 
     val state = MutableStateFlow(State())
@@ -81,6 +83,11 @@ object PlayerCore {
     private var lyric: List<LyricLine> = emptyList()
     private var loadJob: Job? = null
     private var pendingSeekMs: Long = -1L
+    /** 冷启动恢复的歌曲与进度（只对这首歌生效一次） */
+    private var restoreSongId: String? = null
+    private var restorePositionMs: Long = -1L
+    /** 歌词版本号（用于界面刷新） */
+    private var lyricCounter = 0
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -120,6 +127,14 @@ object PlayerCore {
 
     fun load(song: Song, q: Quality, updateIndex: Boolean = true) {
         quality = q
+        // 只有加载"上次恢复的那首歌"才跳到历史进度；新歌一律从头播放
+        pendingSeekMs = if (restoreSongId != null && song.id == restoreSongId && restorePositionMs > 0) {
+            restorePositionMs
+        } else {
+            -1L
+        }
+        restoreSongId = null
+        restorePositionMs = -1L
         if (updateIndex) {
             val i = queue.indexOf(song)
             if (i >= 0) index = i
@@ -138,6 +153,8 @@ object PlayerCore {
                         NeteaseParser.lyric(song.id)
                     } ?: ""
                     lyric = parseLyric(lrc)
+                    lyricCounter++
+                    state.value = state.value.copy(lyricVersion = lyricCounter)
                 }
                 startLocal(local, song)
             }
@@ -154,6 +171,8 @@ object PlayerCore {
                         NeteaseParser.lyric(song.id)
                     } ?: ""
                     lyric = parseLyric(lrc)
+                    lyricCounter++
+                    state.value = state.value.copy(lyricVersion = lyricCounter)
                 }
                 startPlay(result.url)
             } catch (e: Exception) {
@@ -380,12 +399,13 @@ object PlayerCore {
         )
         if (song.id.isBlank()) return
         val pos = prefs.getLong("pos", 0L)
+        restoreSongId = song.id
+        restorePositionMs = pos
         quality = runCatching {
             Quality.valueOf(prefs.getString("quality", "STANDARD") ?: "STANDARD")
         }.getOrDefault(Quality.STANDARD)
         queue = listOf(song)
         index = 0
-        pendingSeekMs = pos
         state.value = State(
             song = song,
             positionMs = pos,

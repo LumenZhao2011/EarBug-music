@@ -60,6 +60,7 @@ class PlaybackController(
     private var lyricsShown = false
     private var lastLyricScroll = -1
     private var autoScrollPauseUntil = 0L
+    private var lastLyricVersion = -1
 
     private var lastSongId: String? = null
     private var dragging = false
@@ -217,8 +218,11 @@ class PlaybackController(
         val lines = PlayerCore.lyricLines()
         lyricsAdapter.submit(lines)
         lastLyricScroll = -1
-        tvLyricsEmpty.visibility = if (lines.isEmpty()) View.VISIBLE else View.GONE
-        rvLyrics.visibility = if (lines.isEmpty()) View.GONE else View.VISIBLE
+        val empty = lines.isEmpty()
+        tvLyricsEmpty.visibility = if (empty) View.VISIBLE else View.GONE
+        tvLyricsEmpty.text = if (PlayerCore.state.value.loading) "歌词加载中…" else "暂无歌词"
+        rvLyrics.visibility = if (empty) View.GONE else View.VISIBLE
+        lastLyricVersion = PlayerCore.state.value.lyricVersion
     }
 
     /** 返回键优先关闭歌词页；返回 true 表示已处理 */
@@ -291,8 +295,10 @@ class PlaybackController(
                         }
                     }
                     if (lyricsShown) {
-                        // 切歌后歌词列表长度变化时重新填充，避免“歌词卡没”
-                        if (PlayerCore.lyricLines().size != lyricsAdapter.itemCountSafe()) {
+                        // 歌词解析完成（版本号变化）或长度不一致时重新填充，避免“歌词卡没”
+                        if (st.lyricVersion != lastLyricVersion ||
+                            PlayerCore.lyricLines().size != lyricsAdapter.itemCountSafe()
+                        ) {
                             fillLyrics()
                         }
                         scrollToCurrent()
