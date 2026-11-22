@@ -109,6 +109,7 @@ class MainActivity : AppCompatActivity() {
         setupSearchPage()
         playback = PlaybackController(this, pagePlayer)
         playback.observe()
+        playback.setQuality(selectedQuality)
         setupDownloadsPage()
         setupFavoritesPage()
         PlayerCore.restoreSession()
@@ -117,8 +118,15 @@ class MainActivity : AppCompatActivity() {
         // 切歌（含通知栏/耳机下一首）时，强制切到播放页，保证歌词跟着刷新
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
+                var firstEmission = true
                 PlayerCore.state.collect { st ->
                     val id = st.song?.id
+                    if (firstEmission) {
+                        // 首次发射（含旋转重建）只记录，不跳页
+                        firstEmission = false
+                        lastSeenSongId = id
+                        return@collect
+                    }
                     if (id != null && id != lastSeenSongId) {
                         lastSeenSongId = id
                         if (st.playing || st.loading) selectTab(1)
@@ -146,6 +154,7 @@ class MainActivity : AppCompatActivity() {
             if (i != index) v.visibility = android.view.View.GONE
         }
         target.visibility = android.view.View.VISIBLE
+        if (index == 1) playback.refreshFavorite()
         if (index == 3) refreshFavorites()
         if (!alreadyVisible) {
             target.alpha = 0f
@@ -226,6 +235,7 @@ class MainActivity : AppCompatActivity() {
             ) { index ->
                 selectedQuality = qualityOptions[index].quality
                 actvQuality.setText(qualityOptions[index].label, false)
+                playback.setQuality(selectedQuality)
                 prefs.edit().putString("quality", selectedQuality.name).apply()
             }
         }
@@ -265,6 +275,15 @@ class MainActivity : AppCompatActivity() {
         if (mode != ParseMode.TOPLIST && input.isEmpty()) {
             toastError("请输入内容")
             return
+        }
+        // 粘贴网易云链接时自动切换到匹配的模式
+        if (LinkParser.looksLikeLink(input)) {
+            val detected = LinkParser.detectMode(input)
+            if (detected != null && detected != mode) {
+                mode = detected
+                actvMode.setText(mode.label, false)
+                etInput.hint = mode.hint
+            }
         }
         progressBar.visibility = android.view.View.VISIBLE
         tvEmpty.visibility = android.view.View.GONE

@@ -317,6 +317,18 @@ class PlaybackController(
         }
     }
 
+    /** 同步音质选择（下载按钮使用） */
+    fun setQuality(q: Quality) {
+        quality = q
+    }
+
+    /** 刷新收藏图标（进入播放页时调用） */
+    fun refreshFavorite() {
+        val song = PlayerCore.currentSong() ?: return
+        val fav = com.zhaoguanghao.earbugmusic.util.Favorites.isFavorite(activity, song.id)
+        btnFav.setImageResource(if (fav) R.drawable.ic_heart_filled else R.drawable.ic_heart)
+    }
+
     /** 从列表播放某首歌（同时启动通知栏服务） */
     fun load(song: Song, q: Quality) {
         quality = q

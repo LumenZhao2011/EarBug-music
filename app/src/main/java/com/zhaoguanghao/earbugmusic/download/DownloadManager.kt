@@ -64,11 +64,11 @@ object DownloadManager {
         songs.forEach { enqueue(context, it, quality) }
     }
 
-    /** 是否已在队列（等待/解析/下载中）或已下载完成 */
+    /** 是否正在队列中（等待/解析/下载中）；已完成的不拦截，交给“重新下载”确认 */
     fun findActive(songId: String): DownloadTask? = _tasks.value.firstOrNull {
         it.song.id == songId && (
             it.status == DownloadStatus.WAITING || it.status == DownloadStatus.PARSING ||
-                it.status == DownloadStatus.DOWNLOADING || it.status == DownloadStatus.SUCCESS
+                it.status == DownloadStatus.DOWNLOADING
             )
     }
 

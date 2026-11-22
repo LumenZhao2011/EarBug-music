@@ -194,7 +194,8 @@ class PlaybackService : Service() {
         }
         scope.cancel()
         session.release()
-        PlayerCore.release()
+        // 只释放播放器资源，保留当前歌曲信息供界面显示
+        PlayerCore.releaseResources()
         super.onDestroy()
     }
 

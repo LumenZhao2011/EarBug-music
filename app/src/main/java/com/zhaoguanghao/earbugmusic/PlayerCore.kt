@@ -319,6 +319,13 @@ object PlayerCore {
         state.value = State()
     }
 
+    /** 仅释放底层资源，保留歌曲信息（服务销毁时用） */
+    fun releaseResources() {
+        loadJob?.cancel()
+        releasePlayer()
+        state.value = state.value.copy(playing = false, loading = false, status = "已停止")
+    }
+
     /** 停止播放：保留当前歌曲信息，方便再次播放 */
     fun stop() {
         saveSession()
@@ -398,18 +405,28 @@ object PlayerCore {
 
     private fun parseLyric(lrc: String): List<LyricLine> {
         val out = mutableListOf<LyricLine>()
+        val tsRegex = Regex("\\[(\\d{1,2}):(\\d{1,2})(?:[.:](\\d{1,3}))?]")
         for (line in lrc.lines()) {
-            val m = Regex("\\[(\\d{1,2}):(\\d{1,2})(?:[.:](\\d{1,3}))?]").find(line) ?: continue
-            val min = m.groupValues[1].toIntOrNull() ?: continue
-            val sec = m.groupValues[2].toIntOrNull() ?: continue
-            val msRaw = m.groupValues[3]
-            val ms = when (msRaw.length) {
-                0 -> 0L
-                1 -> msRaw.toLong() * 100
-                2 -> msRaw.toLong() * 10
-                else -> msRaw.toLong()
+            // 一行可能有多个时间戳（如副歌重复）
+            val times = mutableListOf<Long>()
+            var cursor = 0
+            while (true) {
+                val m = tsRegex.find(line, cursor) ?: break
+                if (m.range.first != cursor) break
+                val min = m.groupValues[1].toIntOrNull() ?: break
+                val sec = m.groupValues[2].toIntOrNull() ?: break
+                val msRaw = m.groupValues[3]
+                val ms = when (msRaw.length) {
+                    0 -> 0L
+                    1 -> msRaw.toLong() * 100
+                    2 -> msRaw.toLong() * 10
+                    else -> msRaw.toLong()
+                }
+                times.add(min * 60000L + sec * 1000L + ms)
+                cursor = m.range.last + 1
             }
-            val raw = line.substring(m.range.last + 1).trim()
+            if (times.isEmpty()) continue
+            val raw = line.substring(cursor).trim()
             if (raw.isEmpty()) continue
             // 合并格式：原文 (翻译：译文)
             var text = raw
@@ -420,7 +437,7 @@ object PlayerCore {
                 trans = raw.substring(mark + 5, raw.length - 1).trim().ifEmpty { null }
             }
             if (text.isEmpty()) continue
-            out.add(LyricLine(min * 60000L + sec * 1000L + ms, text, trans))
+            times.forEach { out.add(LyricLine(it, text, trans)) }
         }
         out.sortBy { it.timeMs }
         return out
