@@ -120,6 +120,17 @@ class PlaybackController(
 
         PlayerCore.attachContext(activity.applicationContext)
 
+        // 封面尺寸自适应：保证播放页一屏可见，上滑即可打开歌词
+        val dm = activity.resources.displayMetrics
+        val coverSize = (dm.heightPixels * 0.32f).toInt()
+            .coerceAtMost((310 * dm.density).toInt())
+            .coerceAtLeast((200 * dm.density).toInt())
+        page.findViewById<View>(R.id.coverCard)?.layoutParams?.let { lp ->
+            lp.width = coverSize
+            lp.height = coverSize
+            page.findViewById<View>(R.id.coverCard).layoutParams = lp
+        }
+
         // 上/下滑切换歌词页（不要求甩动速度，慢速滑动也能触发）
         val swipeListener = object : View.OnTouchListener {
             private var downY = 0f
@@ -142,9 +153,9 @@ class PlaybackController(
                             kotlin.math.abs(dy) > kotlin.math.abs(dx) * 1.2f
                         ) {
                             if (dy < 0) {
-                                // 上滑打开歌词：仅在播放页滚到顶部时才触发，避免和滚动冲突
+                                // 上滑打开歌词：页面还能继续下滑时优先滚动，滚到底后再上滑才打开
                                 if (!lyricsShown && v === playerScroll &&
-                                    !playerScroll.canScrollVertically(-1)
+                                    !playerScroll.canScrollVertically(1)
                                 ) {
                                     showLyrics()
                                 }
