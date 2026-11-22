@@ -51,7 +51,11 @@ class PlaybackController(
     private val tvLyricsSong = page.findViewById<TextView>(R.id.tvLyricsSong)
     private val rvLyrics = page.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rvLyrics)
     private val tvLyricsEmpty = page.findViewById<TextView>(R.id.tvLyricsEmpty)
-    private val lyricsAdapter = com.zhaoguanghao.earbugmusic.ui.LyricsAdapter()
+    private val lyricsAdapter = com.zhaoguanghao.earbugmusic.ui.LyricsAdapter { timeMs ->
+        PlayerCore.seekTo(timeMs)
+        lastLyricScroll = -1
+        scrollToCurrent(false)
+    }
     private val btnCloseLyrics = page.findViewById<ImageButton>(R.id.btnCloseLyrics)
     private var lyricsShown = false
     private var lastLyricScroll = -1
@@ -62,7 +66,19 @@ class PlaybackController(
     private var quality: Quality = Quality.LOSSLESS
 
     init {
-        btnPlayPause.setOnClickListener { PlayerCore.toggle() }
+        btnPlayPause.setOnClickListener {
+            // 停止/冷启动恢复后没有底层播放器：重新装载，保证通知服务同步启动
+            if (!PlayerCore.hasPlayer()) {
+                val song = PlayerCore.currentSong()
+                if (song == null) {
+                    Toast.makeText(activity, "请先在搜索页选择歌曲", Toast.LENGTH_SHORT).show()
+                } else {
+                    load(song, quality)
+                }
+            } else {
+                PlayerCore.toggle()
+            }
+        }
         btnPrev.setOnClickListener { PlayerCore.prev() }
         btnNext.setOnClickListener { PlayerCore.next() }
         btnDownload.setOnClickListener {
@@ -78,7 +94,12 @@ class PlaybackController(
             }
         }
         btnComments.setOnClickListener {
-            PlayerCore.currentSong()?.let { CommentsDialog.show(activity, it) }
+            val song = PlayerCore.currentSong()
+            if (song == null) {
+                Toast.makeText(activity, "请先播放一首歌曲", Toast.LENGTH_SHORT).show()
+            } else {
+                CommentsDialog.show(activity, song)
+            }
         }
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar, p: Int, fromUser: Boolean) {
@@ -120,11 +141,15 @@ class PlaybackController(
                             kotlin.math.abs(dy) > kotlin.math.abs(dx) * 1.2f
                         ) {
                             if (dy < 0) {
-                                // 上滑：打开歌词
-                                if (!lyricsShown) showLyrics()
-                            } else {
-                                // 下滑：收起歌词
-                                if (lyricsShown) hideLyrics()
+                                // 上滑打开歌词：仅在播放页滚到顶部时才触发，避免和滚动冲突
+                                if (!lyricsShown && v === playerScroll &&
+                                    !playerScroll.canScrollVertically(-1)
+                                ) {
+                                    showLyrics()
+                                }
+                            } else if (lyricsShown && v !== playerScroll) {
+                                // 歌词页下滑收起（仅当歌词列表已在顶部）
+                                if (!rvLyrics.canScrollVertically(-1)) hideLyrics()
                             }
                         }
                     }
@@ -132,12 +157,15 @@ class PlaybackController(
                 return false
             }
         }
-        page.setOnTouchListener(swipeListener)
         playerScroll.setOnTouchListener(swipeListener)
         lyricsPanel.setOnTouchListener(swipeListener)
         btnLyrics.setOnClickListener { if (lyricsShown) hideLyrics() else showLyrics() }
         btnFav.setOnClickListener {
-            val song = PlayerCore.currentSong() ?: return@setOnClickListener
+            val song = PlayerCore.currentSong()
+            if (song == null) {
+                Toast.makeText(activity, "请先播放一首歌曲", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             val added = com.zhaoguanghao.earbugmusic.util.Favorites.toggle(activity, song)
             btnFav.setImageResource(
                 if (added) R.drawable.ic_heart_filled else R.drawable.ic_heart
@@ -191,6 +219,13 @@ class PlaybackController(
         lastLyricScroll = -1
         tvLyricsEmpty.visibility = if (lines.isEmpty()) View.VISIBLE else View.GONE
         rvLyrics.visibility = if (lines.isEmpty()) View.GONE else View.VISIBLE
+    }
+
+    /** 返回键优先关闭歌词页；返回 true 表示已处理 */
+    fun closeLyricsIfShown(): Boolean {
+        if (!lyricsShown) return false
+        hideLyrics()
+        return true
     }
 
     private fun hideLyrics() {

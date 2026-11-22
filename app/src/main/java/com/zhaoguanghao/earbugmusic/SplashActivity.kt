@@ -24,6 +24,7 @@ class SplashActivity : AppCompatActivity() {
     private lateinit var tvWelcome: TextView
     private lateinit var tvSlogan: TextView
     private lateinit var btnStart: com.google.android.material.button.MaterialButton
+    private var entered = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -108,6 +109,8 @@ class SplashActivity : AppCompatActivity() {
         }
 
         btnStart.setOnClickListener {
+            if (entered) return@setOnClickListener
+            entered = true
             prefs.edit().putBoolean("done", true).apply()
             startActivity(Intent(this, MainActivity::class.java))
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)

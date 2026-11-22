@@ -42,6 +42,7 @@ class PlaybackService : Service() {
         const val ACTION_NEXT = "com.zhaoguanghao.earbugmusic.action.NEXT"
         const val ACTION_PREV = "com.zhaoguanghao.earbugmusic.action.PREV"
         const val ACTION_STOP = "com.zhaoguanghao.earbugmusic.action.STOP"
+        const val ACTION_OPEN_PLAYER = "com.zhaoguanghao.earbugmusic.action.OPEN_PLAYER"
 
         fun start(context: Context) {
             val i = Intent(context, PlaybackService::class.java).setAction(ACTION_START)
@@ -221,7 +222,9 @@ class PlaybackService : Service() {
         }
         val contentIntent = PendingIntent.getActivity(
             this, 0,
-            Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            Intent(this, MainActivity::class.java)
+                .setAction(ACTION_OPEN_PLAYER)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val playIcon = if (st.playing) R.drawable.ic_pause else R.drawable.ic_play

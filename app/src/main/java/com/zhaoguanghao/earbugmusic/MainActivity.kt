@@ -62,6 +62,8 @@ class MainActivity : AppCompatActivity() {
 
     private var mode: ParseMode = ParseMode.SONG
     private var lastSeenSongId: String? = null
+    private var currentTab = 0
+    private var askedNotification = false
     private var qualityOptions: List<QualityOption> = emptyList()
     private var selectedQuality: Quality = Quality.LOSSLESS
 
@@ -111,7 +113,6 @@ class MainActivity : AppCompatActivity() {
         setupFavoritesPage()
         PlayerCore.restoreSession()
         selectTab(0)
-        requestNotificationPermission()
 
         // 切歌（含通知栏/耳机下一首）时，强制切到播放页，保证歌词跟着刷新
         lifecycleScope.launch {
@@ -137,6 +138,7 @@ class MainActivity : AppCompatActivity() {
             currentFocus?.clearFocus()
         } catch (_: Exception) {
         }
+        currentTab = index
         val pages = listOf(pageSearch, pagePlayer, pageDownloads, pageFavorites)
         val target = pages[index]
         val alreadyVisible = target.visibility == android.view.View.VISIBLE
@@ -184,6 +186,7 @@ class MainActivity : AppCompatActivity() {
             onPlay = { song ->
                 // 播放列表 = 当前页面的所有歌曲
                 PlayerCore.setQueue(adapter.snapshot())
+                maybeRequestNotificationPermission()
                 playback.load(song, selectedQuality)
                 selectTab(1)
             },
@@ -322,6 +325,7 @@ class MainActivity : AppCompatActivity() {
                     .filter { it.status == com.zhaoguanghao.earbugmusic.download.DownloadStatus.SUCCESS }
                     .map { it.song }
                 PlayerCore.setQueue(if (downloaded.isEmpty()) listOf(task.song) else downloaded)
+                maybeRequestNotificationPermission()
                 playback.load(task.song, selectedQuality)
                 selectTab(1)
             },
@@ -399,12 +403,20 @@ class MainActivity : AppCompatActivity() {
             }
             true
         }
-        field.setOnClickListener { onClick() }
+        field.setOnClickListener {
+            hideKeyboard()
+            onClick()
+        }
     }
 
     /** 单曲入队：本地已存在时先确认 */
     private fun enqueueSong(song: Song) {
         if (!ensureStorage()) return
+        if (DownloadManager.findActive(song.id) != null) {
+            toastError("这首歌已在下载队列")
+            selectTab(2)
+            return
+        }
         val exists = com.zhaoguanghao.earbugmusic.util.LocalLibrary
             .get(applicationContext, song.id) != null
         if (exists) {
@@ -428,12 +440,19 @@ class MainActivity : AppCompatActivity() {
     /** 批量入队：批量中已有本地文件时先确认 */
     private fun enqueueSongs(songs: List<Song>, title: String) {
         if (!ensureStorage()) return
-        val duplicated = songs.count {
+        val pending = songs.filter { DownloadManager.findActive(it.id) == null }
+        if (pending.isEmpty()) {
+            toastError("这些歌曲都已在下载队列")
+            selectTab(2)
+            return
+        }
+        val todo = pending
+        val duplicated = todo.count {
             com.zhaoguanghao.earbugmusic.util.LocalLibrary.get(applicationContext, it.id) != null
         }
         val doEnqueue = {
-            DownloadManager.enqueueAll(applicationContext, songs, selectedQuality)
-            toast(title + "已解析 " + songs.size + " 首，加入下载队列")
+            DownloadManager.enqueueAll(applicationContext, todo, selectedQuality)
+            toast(title + "已解析 " + todo.size + " 首，加入下载队列")
         }
         if (duplicated > 0) {
             com.zhaoguanghao.earbugmusic.ui.LightDialog.confirm(
@@ -464,6 +483,7 @@ class MainActivity : AppCompatActivity() {
             onPlay = { song ->
                 val favs = com.zhaoguanghao.earbugmusic.util.Favorites.all(this)
                 PlayerCore.setQueue(favs)
+                maybeRequestNotificationPermission()
                 playback.load(song, selectedQuality)
                 selectTab(1)
             },
@@ -502,16 +522,35 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** 通知权限（Android 13+）与写存储权限（Android 9 及以下） */
-    private fun requestNotificationPermission() {
-        val wanted = mutableListOf<String>()
-        if (android.os.Build.VERSION.SDK_INT >= 33) {
-            wanted.add(android.Manifest.permission.POST_NOTIFICATIONS)
+    /** 首次开始播放时申请通知权限（有上下文，不打扰） */
+    private fun maybeRequestNotificationPermission() {
+        if (askedNotification) return
+        if (android.os.Build.VERSION.SDK_INT < 33) return
+        val granted = ContextCompat.checkSelfPermission(
+            this, android.Manifest.permission.POST_NOTIFICATIONS
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (granted) return
+        askedNotification = true
+        requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+    }
+
+    override fun onNewIntent(intent: android.content.Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent?.action == PlaybackService.ACTION_OPEN_PLAYER) {
+            selectTab(1)
         }
-        val missing = wanted.filter {
-            ContextCompat.checkSelfPermission(this, it) !=
-                android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+
+    override fun onBackPressed() {
+        // 1. 歌词页打开时先收起
+        if (playback.closeLyricsIfShown()) return
+        // 2. 其它页返回搜索页
+        if (currentTab != 0) {
+            selectTab(0)
+            return
         }
-        if (missing.isNotEmpty()) requestPermissions(missing.toTypedArray(), 1001)
+        super.onBackPressed()
     }
 
     override fun onPause() {

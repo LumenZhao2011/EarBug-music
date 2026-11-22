@@ -109,6 +109,9 @@ object PlayerCore {
 
     fun currentSong(): Song? = state.value.song ?: queue.getOrNull(index)
 
+    /** 是否已有底层播放器（停止/恢复后为 false） */
+    fun hasPlayer(): Boolean = mp != null
+
     fun playAt(i: Int, q: Quality) {
         if (i !in queue.indices) return
         index = i

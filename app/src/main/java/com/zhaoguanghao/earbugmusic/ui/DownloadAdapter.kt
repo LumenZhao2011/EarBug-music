@@ -66,6 +66,11 @@ class DownloadAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val v = LayoutInflater.from(parent.context).inflate(R.layout.item_download, parent, false)
         val holder = VH(v)
+        holder.itemView.setOnClickListener {
+            val pos = holder.bindingAdapterPosition
+            val task = items.getOrNull(pos) ?: return@setOnClickListener
+            if (task.status == DownloadStatus.SUCCESS) onPlay(task)
+        }
         holder.btnPlay.setOnClickListener {
             val pos = holder.bindingAdapterPosition
             if (pos != RecyclerView.NO_POSITION) items.getOrNull(pos)?.let(onPlay)

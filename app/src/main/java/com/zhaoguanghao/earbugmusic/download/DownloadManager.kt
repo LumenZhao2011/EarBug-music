@@ -64,6 +64,14 @@ object DownloadManager {
         songs.forEach { enqueue(context, it, quality) }
     }
 
+    /** 是否已在队列（等待/解析/下载中）或已下载完成 */
+    fun findActive(songId: String): DownloadTask? = _tasks.value.firstOrNull {
+        it.song.id == songId && (
+            it.status == DownloadStatus.WAITING || it.status == DownloadStatus.PARSING ||
+                it.status == DownloadStatus.DOWNLOADING || it.status == DownloadStatus.SUCCESS
+            )
+    }
+
     /** 重试失败任务 */
     fun retry(task: DownloadTask) {
         val ctx = appContext ?: return

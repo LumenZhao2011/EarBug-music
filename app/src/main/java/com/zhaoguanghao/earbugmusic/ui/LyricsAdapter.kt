@@ -12,8 +12,11 @@ import com.zhaoguanghao.earbugmusic.R
 
 /**
  * 歌词列表：每行「原文 + 翻译」，当前行放大变红，其余灰暗。
+ * 点击某行可跳转到该时间点。
  */
-class LyricsAdapter : RecyclerView.Adapter<LyricsAdapter.VH>() {
+class LyricsAdapter(
+    private val onSeek: (Long) -> Unit = {}
+) : RecyclerView.Adapter<LyricsAdapter.VH>() {
 
     private val lines = mutableListOf<PlayerCore.LyricLine>()
     private var active = -1
@@ -42,7 +45,13 @@ class LyricsAdapter : RecyclerView.Adapter<LyricsAdapter.VH>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val v = LayoutInflater.from(parent.context).inflate(R.layout.item_lyric, parent, false)
-        return VH(v)
+        val holder = VH(v)
+        holder.itemView.setOnClickListener {
+            val pos = holder.bindingAdapterPosition
+            val line = lines.getOrNull(pos) ?: return@setOnClickListener
+            onSeek(line.timeMs)
+        }
+        return holder
     }
 
     override fun getItemCount(): Int = lines.size
@@ -61,10 +70,7 @@ class LyricsAdapter : RecyclerView.Adapter<LyricsAdapter.VH>() {
             )
         )
         holder.tvLine.alpha = if (isActive) 1f else 0.45f
-        holder.tvLine.setTypeface(
-            null,
-            if (isActive) Typeface.BOLD else Typeface.NORMAL
-        )
+        holder.tvLine.setTypeface(null, if (isActive) Typeface.BOLD else Typeface.NORMAL)
 
         val trans = line.trans
         if (!trans.isNullOrEmpty()) {
